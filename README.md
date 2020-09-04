@@ -1,6 +1,6 @@
 # dsdb
 
-お好きなデータ構造をTCPサーバーでラップします
+お好きなデータ構造をTCPサーバーで包みます
 
 ```go
 import (
@@ -30,7 +30,14 @@ func main() {
 - :save //データベースをダンプ
 - :load //データベースをロード
 - [テーブル名] [関数名] [引数...] //クエリ
-
+```go
+type SegmentTree struct {
+	Data []int
+	N    int
+}
+func (s SegmentTree) Sum(l int, r int) int {...}
+func (s SegmentTree) Update(idx int, val int) error {...}
+```
 ```
 :make SegmentTree seg 10
 seg Update 1 2
@@ -39,6 +46,8 @@ seg Update 3 5
 ret:success
 seg Update 13 1
 err:index out of range
+seg Sum 0 4
+ret:7
 :save
 ret:success
 ```

@@ -55,7 +55,7 @@ ret:success
 ## 与えるデータ構造について
 - Init関数が登録してあればテーブル作成時にそれを実行します
 - メンバ関数はポインタに対するメンバ関数を含めて全部見て、引数がintかstringのみならクエリの種類として登録します
-- 返り値はerrorのみ、または(int, error), (string, error), (bool, error)のどれかじゃないとダメです
+- 返り値はvoid、errorのみ、(int, error), (string, error), (bool, error)のどれかじゃないとダメです
 - save,loadはgobを使っているのでGobEncode,GobDecodeでダンプの仕方を決められます
   - なので、基本的にフィールドは全部publicで
   

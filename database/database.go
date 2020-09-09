@@ -27,20 +27,20 @@ type DB struct {
 // 	Initializer
 // }
 
-func (db DB) save() error {
+func (db DB) save(dirname string) error {
 	db.tableMutex.Lock()
 	defer db.tableMutex.Unlock()
 
-	err := os.RemoveAll("./data")
+	err := os.RemoveAll(dirname)
 	if err != nil {
 		return err
 	}
-	err = os.Mkdir("./data", 0777)
+	err = os.Mkdir(dirname, 0777)
 	if err != nil {
 		return err
 	}
 	for key, table := range db.Tables {
-		f, err := os.Create("./data/" + key)
+		f, err := os.Create(dirname + "/" + key)
 		if err != nil {
 			return err
 		}
@@ -54,13 +54,12 @@ func (db DB) save() error {
 	return nil
 }
 
-func (db *DB) load() error {
+func (db *DB) load(dirname string) error {
 	db.tableMutex.Lock()
 	defer db.tableMutex.Unlock()
 
 	db.Tables = make(map[string]Table)
-	root := "./data/"
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			f, err := os.Open(path)
 			if err != nil {
@@ -265,12 +264,18 @@ func (db *DB) parseSysCmd(str string) (string, error) {
 		}
 		db.delTable(args[1])
 	case "save":
-		err := db.save()
+		if len(args) < 2 {
+			return "", fmt.Errorf("not enough arguments")
+		}
+		err := db.save(args[1])
 		if err != nil {
 			return "", err
 		}
 	case "load":
-		err := db.load()
+		if len(args) < 2 {
+			return "", fmt.Errorf("not enough arguments")
+		}
+		err := db.load(args[1])
 		if err != nil {
 			return "", err
 		}

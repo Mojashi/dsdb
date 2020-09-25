@@ -201,10 +201,10 @@ func (db DB) handleConnection(conn net.Conn) {
 		}
 
 		ret, err := db.parseStr(strings.ReplaceAll(str, "\n", ""))
-		msg := "ret:" + ret + "\n"
+		msg := "ok:" + ret + "\n"
 		if err != nil {
 			fmt.Println(err)
-			msg = "err:" + err.Error() + "\n"
+			msg = "ng:" + err.Error() + "\n"
 		}
 
 		_, err = conn.Write([]byte(msg))
@@ -246,26 +246,61 @@ func callInterfaceFunc(fun interface{}, args []string) ([]reflect.Value, error) 
 	return reflect.ValueOf(fun).Call(ins), nil
 }
 
+var errNotEnoughArg = fmt.Errorf("not enough error")
+var errCommandNotFound = fmt.Errorf("unknown command")
+var errDBNotFound = fmt.Errorf("unknown database")
+var errInvalidArguments = fmt.Errorf("invalid arguments")
+var successMsg = "success"
+var cmds = []string{
+	":make", ":save", ":load", ":help", ":tbls", ":dsls", ":delete",
+}
+
+func (db *DB) showHelp(args []string) (string, error) {
+	if len(args) == 0 {
+		return strings.Join(cmds, " "), nil
+	} else if len(args) == 1 { // :help Trie
+		ds, ok := db.DSs[args[0]]
+		if !ok {
+			return "", errDBNotFound
+		}
+		methods := []string{}
+		for i := 0; i < ds.NumMethod(); i++ {
+			d := ds.Method(i).Name + strings.TrimPrefix(fmt.Sprint(ds.Method(i).Type), "func")
+			methods = append(methods, d)
+		}
+		ret := ";\n" + strings.Join(methods, ";\n")
+		return ret, nil
+	}
+
+	return "", errInvalidArguments
+}
+
 func (db *DB) parseSysCmd(str string) (string, error) {
 	args := strings.Split(str, " ")
 
 	switch args[0] {
 	case "make": // :make dsname tablename arg1 arg2...
 		if len(args) < 3 {
-			return "", fmt.Errorf("not enough arguments")
+			return "", errNotEnoughArg
 		}
 		err := db.mkTable(args[1], args[2], args[3:])
 		if err != nil {
 			return "", err
 		}
+	case "tbls": // :tbls
+		return strings.Join(getKeys(db.Tables), " "), nil
+	case "dsls": // :dsls
+		return strings.Join(getKeys(db.DSs), " "), nil
 	case "delete":
 		if len(args) < 2 {
-			return "", fmt.Errorf("not enough arguments")
+			return "", errNotEnoughArg
 		}
 		db.delTable(args[1])
+	case "help":
+		return db.showHelp(args[1:])
 	case "save":
 		if len(args) < 2 {
-			return "", fmt.Errorf("not enough arguments")
+			return "", errNotEnoughArg
 		}
 		err := db.save(args[1])
 		if err != nil {
@@ -273,16 +308,16 @@ func (db *DB) parseSysCmd(str string) (string, error) {
 		}
 	case "load":
 		if len(args) < 2 {
-			return "", fmt.Errorf("not enough arguments")
+			return "", errNotEnoughArg
 		}
 		err := db.load(args[1])
 		if err != nil {
 			return "", err
 		}
 	default:
-		return "", fmt.Errorf("unknown command")
+		return "", errCommandNotFound
 	}
-	return "success", nil
+	return successMsg, nil
 }
 
 func isError(t reflect.Type) bool {
@@ -292,6 +327,7 @@ func isError(t reflect.Type) bool {
 }
 
 func (db *DB) parseStr(str string) (string, error) {
+	fmt.Println(str)
 	if str == "" {
 		return "", nil
 	}
@@ -300,10 +336,9 @@ func (db *DB) parseStr(str string) (string, error) {
 	}
 
 	args := strings.Split(str, " ")
-	fmt.Println(args)
 
 	if len(args) < 2 {
-		return "", fmt.Errorf("not enough arguments")
+		return "", errNotEnoughArg
 	}
 
 	db.tableMutex.RLock()
@@ -317,7 +352,7 @@ func (db *DB) parseStr(str string) (string, error) {
 
 	_, ok = reflect.TypeOf(t.Ds).MethodByName(query)
 	if !ok {
-		return "", errors.New("unknown query")
+		return "", errCommandNotFound
 	}
 	fun := reflect.ValueOf(t.Ds).MethodByName(query).Interface()
 
@@ -350,5 +385,5 @@ func (db *DB) parseStr(str string) (string, error) {
 			return "", errors.New("invalid return value")
 		}
 	}
-	return "success", nil
+	return successMsg, nil
 }
